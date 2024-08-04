@@ -7,12 +7,22 @@
     <style>
         body { margin: 0; }
         canvas { display: block; background: #add8e6; }
-        #score {
+        #score, #lives {
             position: absolute;
             top: 10px;
-            left: 10px;
             font-size: 24px;
             color: black;
+        }
+        #score { left: 10px; }
+        #lives { right: 10px; }
+        #instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: black;
+            text-align: center;
         }
         .control {
             position: absolute;
@@ -36,12 +46,17 @@
 </head>
 <body>
     <div id="score">Score: 0</div>
+    <div id="lives">Lives: 3</div>
     <canvas id="gameCanvas"></canvas>
     <div class="control">
         <div id="left">⬅️</div>
         <div id="up">⬆️</div>
         <div id="down">⬇️</div>
         <div id="right">➡️</div>
+    </div>
+    <div id="instructions">
+        Use arrow keys or touch controls to move Frangione.<br>
+        Avoid Peppe and save Ginevra to win!
     </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
@@ -52,13 +67,15 @@
         const FRANGIONE = { x: 50, y: 50, size: 20, color: 'blue', speed: 5 };
         const GINEVRA = { x: canvas.width - 70, y: canvas.height - 70, size: 20, color: 'pink' };
         const PEPPE = { x: canvas.width / 2, y: canvas.height / 2, size: 30, color: 'red', speed: 2, direction: 1 };
-        const OBSTACLES = [
-            { x: canvas.width / 4, y: canvas.height / 4, width: 100, height: 20 },
-            { x: canvas.width / 2, y: canvas.height / 3, width: 20, height: 100 },
-            { x: canvas.width / 1.5, y: canvas.height / 2, width: 150, height: 20 },
+        let OBSTACLES = [
+            { x: canvas.width / 4, y: canvas.height / 4, width: 100, height: 20, speed: 1, direction: 1 },
+            { x: canvas.width / 2, y: canvas.height / 3, width: 20, height: 100, speed: 1, direction: 1 },
+            { x: canvas.width / 1.5, y: canvas.height / 2, width: 150, height: 20, speed: 1, direction: 1 },
         ];
 
         let score = 0;
+        let lives = 3;
+        let level = 1;
 
         function drawPlayer(player, name) {
             ctx.fillStyle = player.color;
@@ -105,6 +122,15 @@
             }
         }
 
+        function moveObstacles() {
+            OBSTACLES.forEach(obstacle => {
+                obstacle.x += obstacle.speed * obstacle.direction;
+                if (obstacle.x + obstacle.width > canvas.width || obstacle.x < 0) {
+                    obstacle.direction *= -1;
+                }
+            });
+        }
+
         function checkCollision(player1, player2) {
             return player1.x < player2.x + player2.size &&
                    player1.x + player1.size > player2.x &&
@@ -121,6 +147,15 @@
             });
         }
 
+        function resetGame() {
+            FRANGIONE.x = Math.random() * (canvas.width - FRANGIONE.size);
+            FRANGIONE.y = Math.random() * (canvas.height - FRANGIONE.size);
+            GINEVRA.x = Math.random() * (canvas.width - GINEVRA.size);
+            GINEVRA.y = Math.random() * (canvas.height - GINEVRA.size);
+            PEPPE.x = Math.random() * (canvas.width - PEPPE.size);
+            PEPPE.y = Math.random() * (canvas.height - PEPPE.size);
+        }
+
         document.addEventListener('keydown', (e) => {
             const key = e.key;
             let dx = 0;
@@ -132,39 +167,35 @@
             movePlayer(FRANGIONE, dx, dy);
 
             if (checkCollision(FRANGIONE, PEPPE)) {
-                alert("Peppe ti ha preso! Game Over.");
-                FRANGIONE.x = 50;
-                FRANGIONE.y = 50;
-                score = 0;
+                alert("Peppe ti ha preso! Hai perso una vita.");
+                lives--;
+                document.getElementById('lives').textContent = `Lives: ${lives}`;
+                if (lives <= 0) {
+                    alert("Game Over!");
+                    lives = 3;
+                    score = 0;
+                    level = 1;
+                    OBSTACLES = [
+                        { x: canvas.width / 4, y: canvas.height / 4, width: 100, height: 20, speed: 1, direction: 1 },
+                        { x: canvas.width / 2, y: canvas.height / 3, width: 20, height: 100, speed: 1, direction: 1 },
+                        { x: canvas.width / 1.5, y: canvas.height / 2, width: 150, height: 20, speed: 1, direction: 1 },
+                    ];
+                }
                 document.getElementById('score').textContent = `Score: ${score}`;
+                document.getElementById('lives').textContent = `Lives: ${lives}`;
+                resetGame();
             }
 
             if (checkCollision(FRANGIONE, GINEVRA)) {
-                alert("Hai salvato Ginevra! Hai vinto!");
-                FRANGIONE.x = 50;
-                FRANGIONE.y = 50;
+                alert("Hai salvato Ginevra! Livello completato.");
                 score += 100;
+                level++;
                 document.getElementById('score').textContent = `Score: ${score}`;
-                // Reset positions for a new level
-                GINEVRA.x = Math.random() * (canvas.width - GINEVRA.size);
-                GINEVRA.y = Math.random() * (canvas.height - GINEVRA.size);
-                PEPPE.x = canvas.width / 2;
-                PEPPE.y = canvas.height / 2;
+                OBSTACLES.forEach(obstacle => {
+                    obstacle.speed += 0.5;
+                });
+                resetGame();
             }
         });
 
-        document.getElementById('left').addEventListener('touchstart', () => movePlayer(FRANGIONE, -FRANGIONE.speed, 0));
-        document.getElementById('right').addEventListener('touchstart', () => movePlayer(FRANGIONE, FRANGIONE.speed, 0));
-        document.getElementById('up').addEventListener('touchstart', () => movePlayer(FRANGIONE, 0, -FRANGIONE.speed));
-        document.getElementById('down').addEventListener('touchstart', () => movePlayer(FRANGIONE, 0, FRANGIONE.speed));
-
-        function gameLoop() {
-            movePeppe();
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        gameLoop();
-    </script>
-</body>
-</html>
+        document.getElementById('left').addEventListener('touchstart', () => movePlayer(FRANGIONE, -FRANG
