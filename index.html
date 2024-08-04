@@ -6,7 +6,7 @@
     <title>Frangione Salva Ginevra</title>
     <style>
         body { margin: 0; }
-        canvas { display: block; background: #eee; }
+        canvas { display: block; background: #add8e6; }
         #score {
             position: absolute;
             top: 10px;
@@ -14,11 +14,35 @@
             font-size: 24px;
             color: black;
         }
+        .control {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+        }
+        .control div {
+            width: 50px;
+            height: 50px;
+            background: gray;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body>
     <div id="score">Score: 0</div>
     <canvas id="gameCanvas"></canvas>
+    <div class="control">
+        <div id="left">⬅️</div>
+        <div id="up">⬆️</div>
+        <div id="down">⬇️</div>
+        <div id="right">➡️</div>
+    </div>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -36,9 +60,12 @@
 
         let score = 0;
 
-        function drawPlayer(player) {
+        function drawPlayer(player, name) {
             ctx.fillStyle = player.color;
             ctx.fillRect(player.x, player.y, player.size, player.size);
+            ctx.fillStyle = 'black';
+            ctx.font = '14px Arial';
+            ctx.fillText(name, player.x, player.y - 10);
         }
 
         function drawObstacle(obstacle) {
@@ -52,15 +79,19 @@
 
         function draw() {
             clear();
-            drawPlayer(FRANGIONE);
-            drawPlayer(GINEVRA);
-            drawPlayer(PEPPE);
+            drawPlayer(FRANGIONE, 'Frangione');
+            drawPlayer(GINEVRA, 'Ginevra');
+            drawPlayer(PEPPE, 'Peppe');
             OBSTACLES.forEach(drawObstacle);
         }
 
         function movePlayer(player, dx, dy) {
-            player.x += dx;
-            player.y += dy;
+            const newX = player.x + dx;
+            const newY = player.y + dy;
+            if (!checkObstacleCollision({ ...player, x: newX, y: newY })) {
+                player.x = newX;
+                player.y = newY;
+            }
             if (player.x < 0) player.x = 0;
             if (player.y < 0) player.y = 0;
             if (player.x + player.size > canvas.width) player.x = canvas.width - player.size;
@@ -100,16 +131,12 @@
             if (key === 'ArrowRight') dx = FRANGIONE.speed;
             movePlayer(FRANGIONE, dx, dy);
 
-            if (checkObstacleCollision(FRANGIONE)) {
-                movePlayer(FRANGIONE, -dx, -dy);
-            }
-
             if (checkCollision(FRANGIONE, PEPPE)) {
                 alert("Peppe ti ha preso! Game Over.");
                 FRANGIONE.x = 50;
                 FRANGIONE.y = 50;
                 score = 0;
-                document.getElementById('score').textContent = Score: ${score};
+                document.getElementById('score').textContent = `Score: ${score}`;
             }
 
             if (checkCollision(FRANGIONE, GINEVRA)) {
@@ -117,7 +144,7 @@
                 FRANGIONE.x = 50;
                 FRANGIONE.y = 50;
                 score += 100;
-                document.getElementById('score').textContent = Score: ${score};
+                document.getElementById('score').textContent = `Score: ${score}`;
                 // Reset positions for a new level
                 GINEVRA.x = Math.random() * (canvas.width - GINEVRA.size);
                 GINEVRA.y = Math.random() * (canvas.height - GINEVRA.size);
@@ -125,6 +152,11 @@
                 PEPPE.y = canvas.height / 2;
             }
         });
+
+        document.getElementById('left').addEventListener('touchstart', () => movePlayer(FRANGIONE, -FRANGIONE.speed, 0));
+        document.getElementById('right').addEventListener('touchstart', () => movePlayer(FRANGIONE, FRANGIONE.speed, 0));
+        document.getElementById('up').addEventListener('touchstart', () => movePlayer(FRANGIONE, 0, -FRANGIONE.speed));
+        document.getElementById('down').addEventListener('touchstart', () => movePlayer(FRANGIONE, 0, FRANGIONE.speed));
 
         function gameLoop() {
             movePeppe();
